@@ -19,10 +19,11 @@ Features
 •	Deploys the application to AWS ECS
 Prerequisites
 Before you can use this pipeline, ensure you have the following set up:
-•	Jenkins: A Jenkins instance running with the necessary plugins installed (e.g., Docker Pipeline, AWS Sdk, Git, Pipeline AWS Steps, Maven).
+•	Jenkins: A Jenkins instance running with the necessary plugins installed (e.g., Docker Pipeline, AWS Sdk, SonarQube Scanner,Git, Pipeline AWS Steps, Maven).
 •	AWS Account: Access to an AWS account with the availability of an IAM user with appropriate permissions to use ECR and ECS.
 •	Access Key and Secret access Key for the above IAM Role
 •	GitHub Repository: The source code should be hosted on GitHub.
+•	SonarQube Sever URL and Credentials should be configured in the Manage Jenkins Section
 •	SonarQube: Setup for code quality analysis.
 
 Pipeline Overview
@@ -30,9 +31,10 @@ The pipeline consists of several stages:
 1.	Fetch Code: Clones the specified branch from the GitHub repository.
 2.	Test: Runs unit tests using Maven.
 3.	Code Analysis with Checkstyle: Performs static code analysis.
-4.	Build App Image: Creates a Docker image from the code.
-5.	Upload App Image: Pushes the built Docker image to AWS ECR.
-6.	Deploy to ECS: Updates the ECS service to use the new image.
+4.	Performs Sonarqube Analysis
+5.	Build App Image: Creates a Docker image from the code.
+6.	Upload App Image: Pushes the built Docker image to AWS ECR.
+7.	Deploy to ECS: Updates the ECS service to use the new image.
 Jenkinsfile Explanation
 Below is a breakdown of the key sections of the Jenkinsfile:
 pipeline {
