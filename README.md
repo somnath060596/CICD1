@@ -51,17 +51,110 @@ pipeline {
         service = "vprofileappsvc"
     }
     
-
-
-
-
-Environment Variables
+**Environment Variables**
 •	registryCredential: AWS ECR credentials.
 •	appRegistry: The ECR repository URL.
 •	vprofileRegistry: The ECR registry URL.
 •	cluster: The name of the ECS cluster.
 •	service: The name of the ECS service.
-Stages
+
+**Pipeline Stages**
+
+1. **Fetch Code**
+stage('Fetch code'){
+    steps {
+        git branch: 'docker', url: 'https://github.com/devopshydclub/vprofile-project.git'
+    }
+}
+
+Description:
+This stage retrieves the latest code from the docker branch of the VProfile GitHub repository. The code is fetched using the git command.
+
+2. **Test Code**
+   stage('Test'){
+    steps {
+        sh 'mvn test'
+    }
+}
+
+Description:
+In this stage, automated tests are executed using Maven. The mvn test command runs all the unit tests defined in the project to ensure code quality and functionality.
+
+3. **SONAR QUBE Analysis**
+   stage('build && SonarQube analysis') {
+    environment {
+        scannerHome = tool 'sonar4.7'
+    }
+    steps {
+        withSonarQubeEnv('sonar') {
+            sh '''${scannerHome}/bin/sonar-scanner -Dsonar.projectKey=vprofile \
+                -Dsonar.projectName=vprofile-repo \
+                -Dsonar.projectVersion=1.0 \
+                -Dsonar.sources=src/ \
+                -Dsonar.java.binaries=target/test-classes/com/visualpathit/account/controllerTest/ \
+                -Dsonar.junit.reportsPath=target/surefire-reports/ \
+                -Dsonar.jacoco.reportsPath=target/jacoco.exec \
+                -Dsonar.java.checkstyle.reportPaths=target/checkstyle-result.xml'''
+        }
+    }
+}
+
+Description:
+This stage compiles the code and performs static analysis using SonarQube. The analysis checks for code quality, potential bugs, and vulnerabilities. It uses several parameters, such as project key, version, and paths for reports.
+
+4. **Quality Gate**
+   stage("Quality Gate") {
+    steps {
+        timeout(time: 1, unit: 'HOURS') {
+            waitForQualityGate abortPipeline: true
+        }
+    }
+}
+
+Description:
+This stage Passes the Code through the define Quality Gate analysis. It will wait for an hour for the quality Gate to finish post whih it will abort the pipeline.
+
+5. **Build App Image**
+   stage('Build App Image') {
+    steps {
+        script {
+            dockerImage = docker.build(appRegistry + ":$BUILD_NUMBER", "./Docker-files/app/multistage/")
+        }
+    }
+}
+
+Description:
+This stage Builds the Docker image of the Code using Docker Build Command. It utilizes **appRegistry** variable which we have defined in the variables section.
+Also it utilizes the $BUILD_NUMBER env variable of JENKINS to maintain different version of the code.
+
+6. **Push the Image to ECR**
+   stage('Upload App Image') {
+    steps {
+        script {
+            docker.withRegistry(vprofileRegistry, registryCredential) {
+                dockerImage.push("$BUILD_NUMBER")
+                dockerImage.push('latest')
+            }
+        }
+    }
+}
+
+Description:
+This stage uploads the Docker image to the specified Docker registry. Both the versioned image (tagged with the build number) and the latest image are pushed to the registry for deployment.
+
+7. **Deploy to ECS**
+
+   stage('Deploy to ECS') {
+    steps {
+        withAWS(credentials: 'awscreds', region: 'ap-south-1') {
+            sh 'aws ecs update-service --cluster ${cluster} --service ${service} --force-new-deployment'
+        }
+    }
+}
+
+Description:
+In the final stage, the application is deployed to Amazon ECS (Elastic Container Service). The AWS CLI command updates the ECS service to force a new deployment, ensuring that the latest version of the application is running.
+
 Each stage is responsible for a specific part of the pipeline process, from fetching the code to deploying it on AWS ECS.
 Setup Instructions
 1.	Clone the Repository: Clone this repository to your local machine.
